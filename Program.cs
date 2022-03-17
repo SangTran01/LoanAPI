@@ -1,4 +1,5 @@
 using LoanWebAPI.Models;
+using LoanWebAPI.Repository;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +15,8 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<LoanDBContext>(options => 
 options.UseSqlServer(connectionString));
+
+builder.Services.AddScoped<ILoanRepository<Loan, int>, LoanRepository>();
 
 var app = builder.Build();
 

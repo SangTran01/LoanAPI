@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LoanWebAPI.Models;
+using LoanWebAPI.Repository;
 
 namespace LoanWebAPI.Controllers
 {
@@ -14,26 +15,26 @@ namespace LoanWebAPI.Controllers
     [ApiController]
     public class LoansController : ControllerBase
     {
-        private readonly LoanDBContext _context;
+        private readonly ILoanRepository<Loan, int> _repository;
 
-        public LoansController(LoanDBContext context)
+        public LoansController(ILoanRepository<Loan, int> repository)
         {
-            _context = context;
+            _repository = repository;
         }
 
         // GET: api/Loans
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Loan>>> GetLoans()
         {
-            return await _context.Loans.ToListAsync();
+            var res = await _repository.FindAll();
+            return res.ToList();
         }
 
         // GET: api/Loans/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Loan>> GetLoan(int id)
         {
-            var loan = await _context.Loans.FindAsync(id);
-
+            var loan = await _repository.FindById(id);
             if (loan == null)
             {
                 return NotFound();
@@ -43,7 +44,6 @@ namespace LoanWebAPI.Controllers
         }
 
         // PUT: api/Loans/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutLoan(int id, Loan loan)
         {
@@ -52,34 +52,26 @@ namespace LoanWebAPI.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(loan).State = EntityState.Modified;
+            await _repository.Update(loan);
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _repository.Save();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!LoanExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return NotFound();
             }
 
             return NoContent();
         }
 
         // POST: api/Loans
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Loan>> PostLoan(Loan loan)
         {
-            _context.Loans.Add(loan);
-            await _context.SaveChangesAsync();
+            await _repository.Add(loan);
+            await _repository.Save();
 
             return CreatedAtAction("GetLoan", new { id = loan.Id }, loan);
         }
@@ -88,21 +80,17 @@ namespace LoanWebAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteLoan(int id)
         {
-            var loan = await _context.Loans.FindAsync(id);
+            var loan = await _repository.FindById(id);
+
             if (loan == null)
             {
                 return NotFound();
             }
 
-            _context.Loans.Remove(loan);
-            await _context.SaveChangesAsync();
+            await _repository.Delete(loan);
+            await _repository.Save();
 
             return NoContent();
-        }
-
-        private bool LoanExists(int id)
-        {
-            return _context.Loans.Any(e => e.Id == id);
         }
     }
 }
