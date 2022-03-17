@@ -6,7 +6,7 @@ using System.Net;
 
 namespace LoanWebAPI.Repository
 {
-    public class LoanRepository : ILoanRepository<Loan,int>
+    public class LoanRepository : IRepository<Loan,int>
     {
         private readonly LoanDBContext _loanDBContext;
 
@@ -34,19 +34,6 @@ namespace LoanWebAPI.Repository
         public async Task<Loan?> FindById(int id)
         {
             return await _loanDBContext.Loans.Where(x => x.Id == id).FirstOrDefaultAsync();
-        }
-
-        public async Task Save()
-        {
-            await _loanDBContext.SaveChangesAsync();
-        }
-
-        public async Task Update(Loan entity)
-        {
-            var loan = await _loanDBContext.Loans.Where(x => x.Id == entity.Id).FirstOrDefaultAsync();
-            if (loan != null) {
-                loan = entity;
-            }
         }
     }
 }

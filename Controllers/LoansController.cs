@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LoanWebAPI.Models;
 using LoanWebAPI.Repository;
+using AutoMapper;
+using LoanWebAPI.Models.DTO;
+using Microsoft.AspNetCore.Authorization;
 
 namespace LoanWebAPI.Controllers
 {
@@ -15,80 +18,80 @@ namespace LoanWebAPI.Controllers
     [ApiController]
     public class LoansController : ControllerBase
     {
-        private readonly ILoanRepository<Loan, int> _repository;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
-        public LoansController(ILoanRepository<Loan, int> repository)
+        public LoansController(IUnitOfWork unitOfWork, IMapper mapper)
         {
-            _repository = repository;
+            _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
-        // GET: api/Loans
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Loan>>> GetLoans()
+        [AllowAnonymous]
+        public async Task<ActionResult<IEnumerable<LoanDTO>>> GetLoans()
         {
-            var res = await _repository.FindAll();
-            return res.ToList();
+            var results = await _unitOfWork.LoanRepository.FindAll();
+            return _mapper.Map<IEnumerable<LoanDTO>>(results).ToList();
         }
 
-        // GET: api/Loans/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Loan>> GetLoan(int id)
+        public async Task<ActionResult<LoanDTO>> GetLoan(int id)
         {
-            var loan = await _repository.FindById(id);
+            var loan = await _unitOfWork.LoanRepository.FindById(id);
             if (loan == null)
             {
                 return NotFound();
             }
 
-            return loan;
+            return _mapper.Map<LoanDTO>(loan);
         }
 
-        // PUT: api/Loans/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutLoan(int id, Loan loan)
+        public async Task<IActionResult> PutLoan(int id, LoanDTO loanDto)
         {
-            if (id != loan.Id)
+            if (id != loanDto.Id)
             {
                 return BadRequest();
             }
 
-            await _repository.Update(loan);
-
             try
             {
-                await _repository.Save();
+                var loanFromDb = await _unitOfWork.LoanRepository.FindById(id);
+                var loan = _mapper.Map(loanDto, loanFromDb);
+                await _unitOfWork.SaveAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
                 return NotFound();
             }
 
-            return NoContent();
+            return StatusCode(200);
         }
 
-        // POST: api/Loans
         [HttpPost]
-        public async Task<ActionResult<Loan>> PostLoan(Loan loan)
+        public async Task<ActionResult<Loan>> PostLoan(LoanDTO loanDto)
         {
-            await _repository.Add(loan);
-            await _repository.Save();
+            var loan = _mapper.Map<Loan>(loanDto);
 
-            return CreatedAtAction("GetLoan", new { id = loan.Id }, loan);
+            await _unitOfWork.LoanRepository.Add(loan);
+            await _unitOfWork.SaveAsync();
+
+            return CreatedAtAction("GetLoan", new { id = loanDto.Id }, loanDto);
         }
 
-        // DELETE: api/Loans/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteLoan(int id)
         {
-            var loan = await _repository.FindById(id);
+            var loan = await _unitOfWork.LoanRepository.FindById(id);
 
             if (loan == null)
             {
                 return NotFound();
             }
 
-            await _repository.Delete(loan);
-            await _repository.Save();
+            await _unitOfWork.LoanRepository.Delete(loan);
+            await _unitOfWork.SaveAsync();
 
             return NoContent();
         }
